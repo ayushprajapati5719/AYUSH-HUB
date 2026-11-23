@@ -1,0 +1,338 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+if playerGui:FindFirstChild("AyushHub") then
+	playerGui.AyushHub:Destroy()
+end
+
+-- States
+local currentSpeed = 16
+local currentJump = 50
+local islandIndex = 1
+
+local states = {
+	autoFarm = false,
+	autoRaid = false,
+	playerMarker = false,
+	fruitMarker = false,
+	islandMarker = false
+}
+
+-- Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AyushHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Floating Toggle Button
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 120, 0, 38)
+toggleBtn.Position = UDim2.new(0.04, 0, 0.14, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Text = "Ayush Hub"
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Parent = screenGui
+
+local tCorner = Instance.new("UICorner")
+tCorner.CornerRadius = UDim.new(0, 8)
+tCorner.Parent = toggleBtn
+
+-- Main Hub Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 280, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -140, 0.5, -160)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local mCorner = Instance.new("UICorner")
+mCorner.CornerRadius = UDim.new(0, 12)
+mCorner.Parent = mainFrame
+
+-- Title Bar
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 38)
+title.BackgroundColor3 = Color3.fromRGB(28, 28, 42)
+title.Text = "AYUSH HUB - DEV EDITION"
+title.TextColor3 = Color3.fromRGB(180, 110, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 15
+title.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = title
+
+-- Mobile ke liye ScrollingFrame
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -12, 1, -48)
+scroll.Position = UDim2.new(0, 6, 0, 42)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 4
+scroll.CanvasSize = UDim2.new(0, 0, 0, 440)
+scroll.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 8)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+listLayout.Parent = scroll
+
+-- Helper: Highlight + Tag lagane aur hatane ka function
+local function toggleHighlightTag(target, enabled, color, tagName, labelText)
+	if not target then return end
+	local oldHighlight = target:FindFirstChild(tagName .. "_HL")
+	local oldGui = target:FindFirstChild(tagName .. "_Tag")
+
+	if not enabled then
+		if oldHighlight then oldHighlight:Destroy() end
+		if oldGui then oldGui:Destroy() end
+		return
+	end
+
+	if not oldHighlight then
+		local hl = Instance.new("Highlight")
+		hl.Name = tagName .. "_HL"
+		hl.FillColor = color
+		hl.FillTransparency = 0.5
+		hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+		hl.Parent = target
+	end
+
+	if not oldGui then
+		local bill = Instance.new("BillboardGui")
+		bill.Name = tagName .. "_Tag"
+		bill.Size = UDim2.new(0, 120, 0, 30)
+		bill.StudsOffset = Vector3.new(0, 3, 0)
+		bill.AlwaysOnTop = true
+		bill.Parent = target
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, 0, 1, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = labelText
+		lbl.TextColor3 = color
+		lbl.TextStrokeTransparency = 0
+		lbl.Font = Enum.Font.GothamBold
+		lbl.TextSize = 13
+		lbl.Parent = bill
+	end
+end
+
+-- Helper: Adjust Row (+/-)
+local function addAdjustRow(labelText, onMinus, onPlus)
+	local row = Instance.new("Frame")
+	row.Size = UDim2.new(0.95, 0, 0, 36)
+	row.BackgroundColor3 = Color3.fromRGB(32, 32, 46)
+	row.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = row
+
+	local minus = Instance.new("TextButton")
+	minus.Size = UDim2.new(0, 36, 1, 0)
+	minus.BackgroundColor3 = Color3.fromRGB(50, 50, 72)
+	minus.Text = "-"
+	minus.TextColor3 = Color3.fromRGB(255, 255, 255)
+	minus.Font = Enum.Font.GothamBold
+	minus.TextSize = 18
+	minus.Parent = row
+
+	local plus = Instance.new("TextButton")
+	plus.Size = UDim2.new(0, 36, 1, 0)
+	plus.Position = UDim2.new(1, -36, 0, 0)
+	plus.BackgroundColor3 = Color3.fromRGB(50, 50, 72)
+	plus.Text = "+"
+	plus.TextColor3 = Color3.fromRGB(255, 255, 255)
+	plus.Font = Enum.Font.GothamBold
+	plus.TextSize = 18
+	plus.Parent = row
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -72, 1, 0)
+	lbl.Position = UDim2.new(0, 36, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = labelText
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextSize = 13
+	lbl.Parent = row
+
+	minus.MouseButton1Click:Connect(function() onMinus(lbl) end)
+	plus.MouseButton1Click:Connect(function() onPlus(lbl) end)
+end
+
+-- Helper: Action / Toggle Button
+local function addButton(text, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.95, 0, 0, 36)
+	btn.BackgroundColor3 = Color3.fromRGB(38, 38, 54)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Text = text
+	btn.Font = Enum.Font.GothamSemibold
+	btn.TextSize = 13
+	btn.Parent = scroll
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btn
+
+	btn.MouseButton1Click:Connect(function() callback(btn) end)
+	return btn
+end
+
+-- Stats Update
+local function updateStats()
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = currentSpeed
+		hum.UseJumpPower = true
+		hum.JumpPower = currentJump
+	end
+end
+
+player.CharacterAdded:Connect(function()
+	task.wait(0.2)
+	updateStats()
+end)
+
+-- 1. Speed & Jump Controls
+addAdjustRow("Speed: 16", function(lbl)
+	currentSpeed = math.max(16, currentSpeed - 8)
+	lbl.Text = "Speed: " .. currentSpeed
+	updateStats()
+end, function(lbl)
+	currentSpeed = math.min(160, currentSpeed + 8)
+	lbl.Text = "Speed: " .. currentSpeed
+	updateStats()
+end)
+
+addAdjustRow("Jump Power: 50", function(lbl)
+	currentJump = math.max(50, currentJump - 15)
+	lbl.Text = "Jump Power: " .. currentJump
+	updateStats()
+end, function(lbl)
+	currentJump = math.min(250, currentJump + 15)
+	lbl.Text = "Jump Power: " .. currentJump
+	updateStats()
+end)
+
+-- 2. Teleport to Next Island (Workspace.Islands folder se)
+addButton("Teleport Next Island", function(btn)
+	local islandsFolder = workspace:FindFirstChild("Islands")
+	local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if islandsFolder and hrp then
+		local islands = islandsFolder:GetChildren()
+		if #islands > 0 then
+			if islandIndex > #islands then islandIndex = 1 end
+			local targetIsland = islands[islandIndex]
+			local targetPos = targetIsland:IsA("BasePart") and targetIsland.Position or targetIsland:GetPivot().Position
+			hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 5, 0))
+			btn.Text = "TP: " .. targetIsland.Name
+			islandIndex += 1
+		end
+	else
+		btn.Text = "No 'Islands' Folder!"
+	end
+end)
+
+-- 3. Player Marker (ESP style Highlight)
+addButton("Player Markers: OFF", function(btn)
+	states.playerMarker = not states.playerMarker
+	btn.Text = states.playerMarker and "Player Markers: ON" or "Player Markers: OFF"
+	btn.BackgroundColor3 = states.playerMarker and Color3.fromRGB(95, 55, 180) or Color3.fromRGB(38, 38, 54)
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player and plr.Character then
+			toggleHighlightTag(plr.Character, states.playerMarker, Color3.fromRGB(0, 220, 255), "PlrESP", plr.Name)
+		end
+	end
+end)
+
+-- 4. Fruit / Item Marker (Workspace.Fruits folder se)
+addButton("Fruit Markers: OFF", function(btn)
+	states.fruitMarker = not states.fruitMarker
+	btn.Text = states.fruitMarker and "Fruit Markers: ON" or "Fruit Markers: OFF"
+	btn.BackgroundColor3 = states.fruitMarker and Color3.fromRGB(95, 55, 180) or Color3.fromRGB(38, 38, 54)
+
+	local fruitsFolder = workspace:FindFirstChild("Fruits")
+	if fruitsFolder then
+		for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+			toggleHighlightTag(fruit, states.fruitMarker, Color3.fromRGB(255, 80, 120), "FruitESP", fruit.Name)
+		end
+	end
+end)
+
+-- 5. Island Marker (Workspace.Islands folder se)
+addButton("Island Markers: OFF", function(btn)
+	states.islandMarker = not states.islandMarker
+	btn.Text = states.islandMarker and "Island Markers: ON" or "Island Markers: OFF"
+	btn.BackgroundColor3 = states.islandMarker and Color3.fromRGB(95, 55, 180) or Color3.fromRGB(38, 38, 54)
+
+	local islandsFolder = workspace:FindFirstChild("Islands")
+	if islandsFolder then
+		for _, island in ipairs(islandsFolder:GetChildren()) do
+			toggleHighlightTag(island, states.islandMarker, Color3.fromRGB(120, 255, 120), "IslandESP", island.Name)
+		end
+	end
+end)
+
+-- 6. Auto Farm (Workspace.Enemies folder)
+addButton("Auto Farm Enemies: OFF", function(btn)
+	states.autoFarm = not states.autoFarm
+	btn.Text = states.autoFarm and "Auto Farm Enemies: ON" or "Auto Farm Enemies: OFF"
+	btn.BackgroundColor3 = states.autoFarm and Color3.fromRGB(95, 55, 180) or Color3.fromRGB(38, 38, 54)
+
+	if states.autoFarm then
+		task.spawn(function()
+			while states.autoFarm do
+				local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+				local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+				local enemies = workspace:FindFirstChild("Enemies")
+				if hrp and hum and enemies then
+					for _, enemy in ipairs(enemies:GetChildren()) do
+						local eHum = enemy:FindFirstChildOfClass("Humanoid")
+						local eRoot = enemy:FindFirstChild("HumanoidRootPart")
+						if eHum and eRoot and eHum.Health > 0 then
+							hum:MoveTo(eRoot.Position)
+							break
+						end
+					end
+				end
+				task.wait(0.3)
+			end
+		end)
+	end
+end)
+
+-- 7. Factory / Wave Raid Mode (Workspace.RaidBosses folder)
+addButton("Auto Factory/Wave Raid: OFF", function(btn)
+	states.autoRaid = not states.autoRaid
+	btn.Text = states.autoRaid and "Auto Factory/Wave Raid: ON" or "Auto Factory/Wave Raid: OFF"
+	btn.BackgroundColor3 = states.autoRaid and Color3.fromRGB(95, 55, 180) or Color3.fromRGB(38, 38, 54)
+
+	if states.autoRaid then
+		task.spawn(function()
+			while states.autoRaid do
+				local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+				local raidFolder = workspace:FindFirstChild("RaidBosses")
+				if hrp and raidFolder then
+					local boss = raidFolder:GetChildren()[1]
+					local bRoot = boss and (boss:FindFirstChild("HumanoidRootPart") or boss:IsA("BasePart") and boss)
+					if bRoot then
+						hrp.CFrame = CFrame.new(bRoot.Position + Vector3.new(0, 4, 6))
+					end
+				end
+				task.wait(0.5)
+			end
+		end)
+	end
+end)
+
+-- Menu Open/Close
+toggleBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
